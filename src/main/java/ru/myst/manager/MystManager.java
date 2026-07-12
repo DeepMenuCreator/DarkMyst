@@ -34,6 +34,7 @@ public class MystManager {
     private long pickupCooldownMs;
     private int noDoubleSpawnRadius;
     private int zoneRadius;
+    private final Map<String, Long> lastAutoSpawnAt = new HashMap<>();
 
     private BukkitTask tickTask;
 
@@ -79,6 +80,13 @@ public class MystManager {
         type.setTreasureItem(treasureMat != null ? treasureMat : Material.PHANTOM_MEMBRANE);
         type.setTreasureName(s.getString("treasure-name", "&6Сокровище"));
 
+        type.setAutoSpawn(s.getBoolean("auto-spawn", false));
+        type.setAutoSpawnIntervalSeconds(s.getInt("auto-spawn-interval-seconds", 600));
+        type.setAutoSpawnRadius(s.getInt("auto-spawn-radius", 7));
+        if (s.contains("region.world")) {
+            type.setRegion(s.getString("region.world"), s.getInt("region.x"), s.getInt("region.y"), s.getInt("region.z"));
+        }
+
         List<Map<?, ?>> lootRaw = s.getMapList("loot");
         for (Map<?, ?> m : lootRaw) {
             try {
@@ -111,6 +119,18 @@ public class MystManager {
             cfg.set(base + ".use", type.isUse());
             cfg.set(base + ".treasure-item", type.getTreasureItem().name());
             cfg.set(base + ".treasure-name", type.getTreasureName());
+
+            cfg.set(base + ".auto-spawn", type.isAutoSpawn());
+            cfg.set(base + ".auto-spawn-interval-seconds", type.getAutoSpawnIntervalSeconds());
+            cfg.set(base + ".auto-spawn-radius", type.getAutoSpawnRadius());
+            if (type.hasRegion()) {
+                cfg.set(base + ".region.world", type.getRegionWorld());
+                cfg.set(base + ".region.x", type.getRegionX());
+                cfg.set(base + ".region.y", type.getRegionY());
+                cfg.set(base + ".region.z", type.getRegionZ());
+            } else {
+                cfg.set(base + ".region", null);
+            }
 
             List<Map<String, Object>> lootList = new ArrayList<>();
             for (LootEntry entry : type.getLoot()) {
@@ -208,6 +228,13 @@ public class MystManager {
         saveTypes();
     }
 
+    public void setRegion(String typeId, Location loc) {
+        MystType type = getType(typeId);
+        if (type == null) return;
+        type.setRegion(loc.getWorld().getName(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        saveTypes();
+    }
+
     public Collection<MystType> getTypes() {
         return types.values();
     }
@@ -292,7 +319,6 @@ public class MystManager {
                     if (instance.secondsUntilClose() <= 0) {
                         instance.setState(MystInstance.State.CLOSED);
                         changed = true;
-                        // закрываем инвентарь для всех, кто в нём находится
                         for (Player viewer : new ArrayList<>(instance.getInventory().getViewers().stream()
                                 .filter(h -> h instanceof Player).map(h -> (Player) h).toList())) {
                             viewer.closeInventory();
@@ -300,7 +326,6 @@ public class MystManager {
                     }
                 }
                 case CLOSED -> {
-                    // после короткой паузы полностью убираем мист
                     long elapsed = (System.currentTimeMillis() - instance.getStateChangedAt()) / 1000L;
                     if (elapsed >= 5) {
                         despawn(instance);
@@ -313,6 +338,38 @@ public class MystManager {
             HologramUtil.update(instance.getHologram(), renderHologramText(instance));
         }
         if (changed) saveActiveMysts();
+        autoSpawnCheck();
+    }
+
+    /** Автоматический спавн мистов в заданной зоне (радиус ~15x15x15), если включён auto-spawn у типа. */
+    private void autoSpawnCheck() {
+        long now = System.currentTimeMillis();
+        for (MystType type : types.values()) {
+            if (!type.isAutoSpawn()) continue;
+            Location anchor = type.getRegionLocation();
+            if (anchor == null) continue;
+
+            long intervalMs = type.getAutoSpawnIntervalSeconds() * 1000L;
+            Long last = lastAutoSpawnAt.get(type.getId());
+            if (last != null && (now - last) < intervalMs) continue;
+
+            boolean nearbyActive = active.stream().anyMatch(i -> i.getLocation().getWorld().equals(anchor.getWorld())
+                    && i.getLocation().distance(anchor) <= (type.getAutoSpawnRadius() + noDoubleSpawnRadius));
+            if (nearbyActive) continue;
+
+            int radius = type.getAutoSpawnRadius();
+            int dx = random.nextInt(radius * 2 + 1) - radius;
+            int dz = random.nextInt(radius * 2 + 1) - radius;
+            int x = anchor.getBlockX() + dx;
+            int z = anchor.getBlockZ() + dz;
+            int y = anchor.getWorld().getHighestBlockYAt(x, z);
+            Location spawnLoc = new Location(anchor.getWorld(), x, y, z);
+
+            SpawnResult result = spawnMyst(type.getId(), spawnLoc);
+            if (result == SpawnResult.OK) {
+                lastAutoSpawnAt.put(type.getId(), now);
+            }
+        }
     }
 
     private void despawn(MystInstance instance) {
@@ -406,4 +463,4 @@ public class MystManager {
     public MystPlugin getPlugin() {
         return plugin;
     }
-}
+                                                      }
