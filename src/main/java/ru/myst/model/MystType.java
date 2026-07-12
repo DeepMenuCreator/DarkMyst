@@ -1,15 +1,14 @@
 package ru.myst.model;
 
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Шаблон миста: имя, голограммы, тайминги, лут, флаги security/kd/use.
- * Создаётся один раз командой /myst create <имя> и переиспользуется при каждом спавне.
- */
 public class MystType {
 
     private final String id;
@@ -25,6 +24,15 @@ public class MystType {
     private Material treasureItem;
     private String treasureName;
     private final List<LootEntry> loot = new ArrayList<>();
+
+    // ----- авто-спавн -----
+    private boolean autoSpawn = false;
+    private int autoSpawnIntervalSeconds = 600;
+    private int autoSpawnRadius = 7; // ~15x15x15 зона (радиус в каждую сторону)
+    private String regionWorld;
+    private Integer regionX;
+    private Integer regionY;
+    private Integer regionZ;
 
     public MystType(String id) {
         this.id = id;
@@ -43,56 +51,4 @@ public class MystType {
 
     public ItemStackRoll rollLoot(Random random) {
         int totalWeight = loot.stream().mapToInt(LootEntry::getWeight).sum();
-        if (totalWeight <= 0 || loot.isEmpty()) return null;
-        int roll = random.nextInt(totalWeight);
-        int acc = 0;
-        for (LootEntry entry : loot) {
-            acc += entry.getWeight();
-            if (roll < acc) {
-                return new ItemStackRoll(entry.roll(random));
-            }
-        }
-        return new ItemStackRoll(loot.get(loot.size() - 1).roll(random));
-    }
-
-    public record ItemStackRoll(org.bukkit.inventory.ItemStack item) {}
-
-    // ----- getters / setters -----
-
-    public String getId() { return id; }
-
-    public String getDisplayName() { return displayName; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
-
-    public String getHologramFormat() { return hologramFormat; }
-    public void setHologramFormat(String hologramFormat) { this.hologramFormat = hologramFormat; }
-
-    public String getHologramOpeningFormat() { return hologramOpeningFormat; }
-    public void setHologramOpeningFormat(String v) { this.hologramOpeningFormat = v; }
-
-    public String getHologramOpenFormat() { return hologramOpenFormat; }
-    public void setHologramOpenFormat(String v) { this.hologramOpenFormat = v; }
-
-    public int getCountdownBeforeOpenSeconds() { return countdownBeforeOpenSeconds; }
-    public void setCountdownBeforeOpenSeconds(int v) { this.countdownBeforeOpenSeconds = v; }
-
-    public int getOpenDurationSeconds() { return openDurationSeconds; }
-    public void setOpenDurationSeconds(int v) { this.openDurationSeconds = v; }
-
-    public boolean isSecurity() { return security; }
-    public void setSecurity(boolean security) { this.security = security; }
-
-    public boolean isKd() { return kd; }
-    public void setKd(boolean kd) { this.kd = kd; }
-
-    public boolean isUse() { return use; }
-    public void setUse(boolean use) { this.use = use; }
-
-    public Material getTreasureItem() { return treasureItem; }
-    public void setTreasureItem(Material treasureItem) { this.treasureItem = treasureItem; }
-
-    public String getTreasureName() { return treasureName; }
-    public void setTreasureName(String treasureName) { this.treasureName = treasureName; }
-
-    public List<LootEntry> getLoot() { return loot; }
-}
+        if (totalWeight <
