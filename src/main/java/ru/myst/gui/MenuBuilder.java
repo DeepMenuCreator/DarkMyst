@@ -23,14 +23,14 @@ public class MenuBuilder {
             return;
         }
         MystMenuHolder holder = new MystMenuHolder(typeId);
-        Inventory inv = Bukkit.createInventory(holder, 27,
+        Inventory inv = Bukkit.createInventory(holder, 36,
                 HologramUtil.toComponent("&8Настройка: " + type.getDisplayName()));
         holder.setInventory(inv);
 
         inv.setItem(10, toggleItem("Приват (security)", type.isSecurity(),
                 "Создавать защиту зоны при спавне"));
         inv.setItem(11, toggleItem("Кулдаун-зона (kd)", type.isKd(),
-                "Показывать таймер игрокам в зоне"));
+                "Таймер игрокам в зоне, пропадает при выходе"));
         inv.setItem(12, toggleItem("Использование (use)", type.isUse(),
                 "Разрешить использовать предметы/блоки в зоне"));
 
@@ -41,20 +41,29 @@ public class MenuBuilder {
                 List.of("&7Сейчас: &f" + type.getOpenDurationSeconds() + " сек",
                         "&7ЛКМ: &a+30с &7ПКМ: &c-30с")));
 
-        inv.setItem(20, infoItem(type.getTreasureItem(), "&6Предмет-сокровище",
+        inv.setItem(19, toggleItem("Авто-спавн", type.isAutoSpawn(),
+                type.hasRegion() ? "Зона задана: /myst region " + type.getId() : "§cСначала задайте зону: /myst region " + type.getId()));
+        inv.setItem(20, infoItem(Material.COMPASS, "&bИнтервал авто-спавна",
+                List.of("&7Сейчас: &f" + type.getAutoSpawnIntervalSeconds() + " сек",
+                        "&7ЛКМ: &a+30с &7ПКМ: &c-30с")));
+        inv.setItem(21, infoItem(Material.TARGET, "&bРадиус зоны авто-спавна",
+                List.of("&7Сейчас: &f" + type.getAutoSpawnRadius() + " &7(~" + (type.getAutoSpawnRadius() * 2 + 1) + "x" + (type.getAutoSpawnRadius() * 2 + 1) + ")",
+                        "&7ЛКМ: &a+1 &7ПКМ: &c-1")));
+        inv.setItem(22, infoItem(type.getTreasureItem(), "&6Предмет-сокровище",
                 List.of("&7Имя: " + type.getTreasureName())));
 
-        inv.setItem(22, infoItem(Material.CHEST, "&bРедактировать лут",
+        inv.setItem(24, infoItem(Material.CHEST, "&bРедактировать лут",
                 List.of("&7Нажмите, чтобы открыть", "&7редактор лута миста")));
-
-        inv.setItem(24, infoItem(Material.ENDER_EYE, "&dПревью лута",
+        inv.setItem(25, infoItem(Material.ENDER_EYE, "&dПревью лута",
                 List.of("&7Посмотреть содержимое", "&7без редактирования")));
 
-        inv.setItem(26, infoItem(Material.BARRIER, "&cУдалить тип миста", List.of("&7Осторожно!")));
+        inv.setItem(31, infoItem(Material.BARRIER, "&cУдалить тип миста", List.of("&7Осторожно!")));
 
-        for (int i = 0; i < 27; i++) {
+        for (int i = 0; i < 36; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, filler());
         }
+
+        player.openInventory(inv);
     }
 
     public static void openLootEditor(Player player, MystManager manager, String typeId) {
@@ -74,6 +83,8 @@ public class MenuBuilder {
         inv.setItem(49, infoItem(Material.LIME_WOOL, "&aСохранить",
                 List.of("&7Количество предмета в слоте = вес/кол-во", "&7Пустые слоты игнорируются")));
         inv.setItem(53, infoItem(Material.RED_WOOL, "&cОтмена (без сохранения)", List.of()));
+
+        player.openInventory(inv);
     }
 
     public static void openPreview(Player player, MystManager manager, String typeId) {
@@ -135,4 +146,4 @@ public class MenuBuilder {
         item.setItemMeta(meta);
         return item;
     }
-}
+            }
